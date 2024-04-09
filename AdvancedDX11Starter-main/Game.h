@@ -7,6 +7,7 @@
 #include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
+#include "Emitter.h"
 
 #include <DirectXMath.h>
 #include <wrl/client.h>
@@ -61,6 +62,9 @@ private:
 	void CameraUI(std::shared_ptr<Camera> cam);
 	void EntityUI(std::shared_ptr<GameEntity> entity);	
 	void LightUI(Light& light);
+
+	// Particles
+	std::shared_ptr<Emitter> emitter;
 	
 	// Should the ImGui demo window be shown?
 	bool showUIDemoWindow;
