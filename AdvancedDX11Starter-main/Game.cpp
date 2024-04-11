@@ -104,6 +104,9 @@ void Game::Init()
 	lightCount = 64;
 	GenerateLights();
 
+	// Create Emitters
+	GenerateEmitters();
+
 	// Set initial graphics API state
 	//  - These settings persist until we change them
 	{
@@ -355,13 +358,13 @@ void Game::LoadAssetsAndCreateEntities()
 	woodSpherePBR->GetTransform()->SetPosition(6, 2, 0);
 	woodSpherePBR->GetTransform()->SetScale(2, 2, 2);
 
-	entities.push_back(cobSpherePBR);
+	/*entities.push_back(cobSpherePBR);
 	entities.push_back(floorSpherePBR);
 	entities.push_back(paintSpherePBR);
 	entities.push_back(scratchSpherePBR);
 	entities.push_back(bronzeSpherePBR);
 	entities.push_back(roughSpherePBR);
-	entities.push_back(woodSpherePBR);
+	entities.push_back(woodSpherePBR);*/
 
 	// Create the non-PBR entities ==============================
 	std::shared_ptr<GameEntity> cobSphere = std::make_shared<GameEntity>(sphereMesh, cobbleMat2x);
@@ -392,13 +395,13 @@ void Game::LoadAssetsAndCreateEntities()
 	woodSphere->GetTransform()->SetPosition(6, -2, 0);
 	woodSphere->GetTransform()->SetScale(2, 2, 2);
 
-	entities.push_back(cobSphere);
+	/*entities.push_back(cobSphere);
 	entities.push_back(floorSphere);
 	entities.push_back(paintSphere);
 	entities.push_back(scratchSphere);
 	entities.push_back(bronzeSphere);
 	entities.push_back(roughSphere);
-	entities.push_back(woodSphere);
+	entities.push_back(woodSphere);*/
 
 
 	// Save assets needed for drawing point lights
@@ -407,6 +410,30 @@ void Game::LoadAssetsAndCreateEntities()
 	lightPS = solidColorPS;
 }
 
+void Game::GenerateEmitters()
+{
+	std::shared_ptr<SimpleVertexShader> particleVS = LoadShader(SimpleVertexShader, L"ParticleVS.cso");
+	std::shared_ptr<SimplePixelShader> particlePS = LoadShader(SimplePixelShader, L"ParticlePS.cso");
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleTexture;
+	LoadTexture(L"../../Assets/Textures/Particles/", particleTexture);
+	
+	
+	// Create particle materials
+	std::shared_ptr<Material> standardParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	standardParticle->AddSampler("BasicSampler", samplerOptions);
+	standardParticle->AddTextureSRV("Particle", particleTexture);
+
+
+	emitter = std::make_shared<Emitter>(
+		1.0f,
+		5,
+		100,
+		standardParticle,
+		device,
+		context);
+		// \Assets\Textures\Particles\PNG (Transparent)
+}
 
 // --------------------------------------------------------
 // Generates the lights in the scene: 3 directional lights
@@ -487,6 +514,9 @@ void Game::Update(float deltaTime, float totalTime)
 	// Update the camera
 	camera->Update(deltaTime);
 
+	// Update Particles
+	emitter->Update(deltaTime);
+
 	// Check individual input
 	Input& input = Input::GetInstance();
 	if (input.KeyDown(VK_ESCAPE)) Quit();
@@ -532,6 +562,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the light sources?
 	if(showPointLights)
 		DrawPointLights();
+
+	emitter->Draw(camera);
 
 	// Draw the sky
 	sky->Draw(camera);

@@ -54,6 +54,7 @@ private:
 	// General helpers for setup and drawing
 	void LoadAssetsAndCreateEntities();
 	void GenerateLights();
+	void GenerateEmitters();
 	void DrawPointLights();
 
 	// UI functions
