@@ -98,12 +98,6 @@ void Emitter::Update(float delta)
 	currentTime += delta;
 	timeSinceLastEmit += delta;
 
-	if (liveEnd >= 9)
-	{
-		auto test = particles[9];
-		printf("Yeah");
-	}
-
 	// Iterate through each particle and check lifetime
 	// Does need to emit 
 
@@ -134,8 +128,6 @@ void Emitter::Update(float delta)
 		liveStart = currIndex;
 	}
 
-	//printf("timeSinceLastEmit: %f \n", timeSinceLastEmit);
-	
 	if (timeSinceLastEmit > timeBetweenParticles)
 	{
 		// In case multiple need to be spawned 
@@ -203,25 +195,6 @@ void Emitter::Update(float delta)
 /// </summary>
 void Emitter::Draw(std::shared_ptr<Camera> camera)
 {
-	//D3D11_MAPPED_SUBRESOURCE mapped = {};
-	//context->Map(particleBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-	//// Check if need to be split into two 
-	//if (liveEnd < liveStart) 
-	//{
-	//	// Send into two batches
-	//	SendToGPU(liveStart, ringBufferSize - 1, mapped);
-	//	SendToGPU(0, liveEnd, mapped);
-	//}
-	//else
-	//{
-	//	// Send in one batch 
-	//	SendToGPU(liveStart, liveEnd, mapped);
-	//}
-
-	//// Unmap now that we're done copying
-	//context->Unmap(particleBuffer.Get(), 0);
-
 	// Now that we have emit and updated all particles for this frame, 
 	// we can copy them to the GPU as either one big chunk or two smaller chunks
 
@@ -271,6 +244,7 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
 	vs->SetMatrix4x4("view", camera->GetView());
 	vs->SetMatrix4x4("projection", camera->GetProjection());
+	vs->SetFloat("currentTime", currentTime);
 	vs->CopyAllBufferData();
 
 	// Send to structured buffer 

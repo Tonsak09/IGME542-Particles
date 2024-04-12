@@ -1,8 +1,17 @@
+#include "AnimCurves.hlsli"
+
 cbuffer externalData : register(b0)
 {
     matrix view;
     matrix projection;
+    
+    float4 startScale;
+    float4 targetScale;
+    int scaleAnimCurve;
+    
     float currentTime;
+    float noiseScale;
+    float gravity; 
 };
 
 struct Particle
@@ -32,7 +41,7 @@ VertexToPixel main(uint id : SV_VertexID)
 
     float3 pos = p.startPos; //
     float size = 1.0f;
-    output.tint = float4(p.startPos, 1.0);
+    output.tint = float4(currentTime, 0.0, 0.0f, 1.0);
 	// Offsets for the 4 corners of a quad - we'll only
 	// use one for each vertex, but which one depends
 	// on the cornerID above.
@@ -62,56 +71,12 @@ VertexToPixel main(uint id : SV_VertexID)
     matrix viewProj = mul(projection, view);
     output.pos = mul(viewProj, float4(pos, 1.0f));
 
-    // Get the U/V indices (basically column & row index across the sprite sheet)
-    uint uIndex = 0;
-    uint vIndex = 1; // Integer division is important here!
-
-    // Convert to a top-left corner in uv space (0-1)
-    float u = uIndex / (float)1;
-    float v = vIndex / (float)1;
-
-    float spriteSheetFrameWidth = 1.0f;
-    float spriteSheetFrameHeight = 1.0f;
-
-    float2 uvs[4];
-    /* TL */ uvs[0] = float2(u, v);
-    /* TR */ uvs[1] = float2(u + spriteSheetFrameWidth, v);
-    /* BR */ uvs[2] = float2(u + spriteSheetFrameWidth, v + spriteSheetFrameHeight);
-    /* BL */ uvs[3] = float2(u, v + spriteSheetFrameHeight);
-
-    // Finalize output
-    output.uv = saturate(uvs[cornerID]);
-
-	return output;
-}
-
-/*
-void alt()
-{
-	// id
-    uint particleID = id / 4; // Every 4 verts are ONE particle!
-    uint cornerID = id % 4; // 0,1,2,3 = which corner of the "quad"
-	
-    Particle p = Particles.Load(particleID);
-	
-    // Set up position 
-    float2 offsets[4];
-    offsets[0] = float2(-1.0f, +1.0f); // Top Left
-    offsets[1] = float2(+1.0f, +1.0f); // Top Right
-    offsets[2] = float2(+1.0f, -1.0f); // Bottom Right
-    offsets[3] = float2(-1.0f, -1.0f); // Bottom Left
-    
-    
-    float3 pos = float3(0, 0, 0) + float3(offsets[cornerID], 0);
-    
-    matrix viewProj = mul(projection, view);
-    output.pos = mul(viewProj, float4(pos, 1.0f));
-    
-    // Set up UVs
     float2 uvs[4];
     uvs[0] = float2(0, 0); // TL
     uvs[1] = float2(1, 0); // TR
     uvs[2] = float2(1, 1); // BR
     uvs[3] = float2(0, 1); // BL
     output.uv = uvs[cornerID];
-}*/
+
+	return output;
+}

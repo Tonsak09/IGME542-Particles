@@ -52,6 +52,18 @@ private:
 	float timeBetweenParticles; // Time between each particle emmision 
 	float timeSinceLastEmit;
 
+	// Additional attributes 
+	float noiseScale;
+	XMFLOAT3 startScale;
+	XMFLOAT3 targetScale;
+	int scaleCurve;
+	XMFLOAT4 startColor;
+	XMFLOAT4 targetColor;
+	int colorCurve;
+	float gravityScale;
+	float rotSpeed;
+
+
 	// Rendering Resources 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> particleBuffer;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleDataSRV;

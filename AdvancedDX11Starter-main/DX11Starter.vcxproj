@@ -169,6 +169,7 @@
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="AnimCurves.hlsli" />
     <None Include="Lighting.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>

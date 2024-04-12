@@ -438,7 +438,6 @@ void Game::GenerateEmitters()
 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleTexture;
 	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/circle_04.png", particleTexture);
-	// L"../../Assets/Textures/rough_albedo.png"
 	
 	// Create particle materials
 	std::shared_ptr<Material> standardParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
@@ -448,7 +447,7 @@ void Game::GenerateEmitters()
 
 	emitter = std::make_shared<Emitter>(
 		1.0f,
-		5,
+		10,
 		100,
 		standardParticle,
 		device,
@@ -589,13 +588,17 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the sky
 	sky->Draw(camera);
 
-	context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);	// Additive blending
-	context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth WRITING
-	emitter->Draw(camera);
-	// Reset to default states for next frame
-	context->OMSetBlendState(0, 0, 0xffffffff);
-	context->OMSetDepthStencilState(0, 0);
-	context->RSSetState(0);
+	{ // Emitters 
+		context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);	// Additive blending
+		context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth WRITING
+		emitter->Draw(camera);
+		// Reset to default states for next frame
+		context->OMSetBlendState(0, 0, 0xffffffff);
+		context->OMSetDepthStencilState(0, 0);
+		context->RSSetState(0);
+	}
+
+	
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
