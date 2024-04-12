@@ -67,6 +67,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 
 	// Helpers
-	void SendToGPU(int start, int end);
+	void SendToGPU(int start, int end, D3D11_MAPPED_SUBRESOURCE& mapped);
 	void InitBuffers();
 };

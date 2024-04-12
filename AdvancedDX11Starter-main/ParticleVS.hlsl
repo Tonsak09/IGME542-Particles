@@ -47,23 +47,23 @@ VertexToPixel main(uint id : SV_VertexID)
     offsets[3] = float2(-1.0f, -1.0f); // BL
 	
 	//// Handle rotation - get sin/cos and build a rotation matrix
- //   float s, c, rotation = lerp(0.0f, 45.0f, 0.0f);
- //   sincos(rotation, s, c); // One function to calc both sin and cos
- //   float2x2 rot =
- //   {
- //       c, s,
-	//	-s, c
- //   };
+    float s, c, rotation = lerp(0.0f, 45.0f, 0.0f);
+    sincos(rotation, s, c); // One function to calc both sin and cos
+    float2x2 rot =
+    {
+        c, s,
+		-s, c
+    };
 
-	//// Rotate the offset for this corner and apply size
- //   float2 rotatedOffset = mul(offsets[cornerID], rot) * size;
+	// Rotate the offset for this corner and apply size
+    float2 rotatedOffset = mul(offsets[cornerID], rot) * size;
 
-	//// Billboarding!
-	//// Offset the position based on the camera's right and up vectors
- //   pos += float3(view._11, view._12, view._13) * rotatedOffset.x; // RIGHT
- //   pos += (false ? float3(0, 1, 0) : float3(view._21, view._22, view._23)) * rotatedOffset.y; // UP
+	// Billboarding!
+	// Offset the position based on the camera's right and up vectors
+    pos += float3(view._11, view._12, view._13) * rotatedOffset.x; // RIGHT
+    pos += (false ? float3(0, 1, 0) : float3(view._21, view._22, view._23)) * rotatedOffset.y; // UP
 
-    pos += float3(offsets[cornerID], 0.0f); // RIGHT
+    //pos += float3(offsets[cornerID], 0.0f); // RIGHT
 
 
 	// Calculate output position

@@ -241,52 +241,24 @@ void Emitter::Update(float delta)
 /// </summary>
 void Emitter::Draw(std::shared_ptr<Camera> camera)
 {
-
-	//// Does this need to be split into two? 
-	//if (liveEnd < liveStart)
-	//{
-	//	// Send into two batches
-	//	SendToGPU(liveStart, ringBufferSize - 1);
-	//	SendToGPU(0, liveEnd);
-	//}
-	//else
-	//{
-	//	// Send in one batch 
-	//	SendToGPU(liveStart, liveEnd);
-	//}
-
 	D3D11_MAPPED_SUBRESOURCE mapped = {};
 	context->Map(particleBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
-	// How are living particles arranged in the buffer?
-	if (liveStart < liveEnd)
+	// Check if need to be split into two 
+	if (liveEnd < liveStart) 
 	{
-		// Only copy from FirstAlive -> FirstDead
-		memcpy(
-			mapped.pData, // Destination = start of particle buffer
-			particles + liveStart, // Source = particle array, offset to first living particle
-			sizeof(Particle) * liveCount); // Amount = number of particles (measured in BYTES!)
+		// Send into two batches
+		SendToGPU(liveStart, ringBufferSize - 1, mapped);
+		SendToGPU(0, liveEnd, mapped);
 	}
 	else
 	{
-		// Copy from 0 -> FirstDead 
-		memcpy(
-			mapped.pData, // Destination = start of particle buffer
-			particles, // Source = start of particle array
-			sizeof(Particle) * liveEnd); // Amount = particles up to first dead (measured in BYTES!)
-
-		// ALSO copy from FirstAlive -> End
-		memcpy(
-			(void*)((Particle*)mapped.pData + liveEnd), // Destination = particle buffer, AFTER the data we copied in previous memcpy()
-			particles + liveStart,  // Source = particle array, offset to first living particle
-			sizeof(Particle) * (ringBufferSize - liveStart)); // Amount = number of living particles at end of array (measured in BYTES!)
+		// Send in one batch 
+		SendToGPU(liveStart, liveEnd, mapped);
 	}
 
 	// Unmap now that we're done copying
 	context->Unmap(particleBuffer.Get(), 0);
-
-
-
 
 
 	UINT stride = 0;
@@ -295,10 +267,10 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	context->IASetVertexBuffers(0, 1, &nullBuffer, &stride, &offset);
 	context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-	// Set particle-specific data and let the
-	// material take care of the rest
+	// Let material do its magic  
 	material->PrepareMaterial(&transform, camera);
 
+	// Set vertex specific information 
 	std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
 	vs->SetMatrix4x4("view", camera->GetView());
 	vs->SetMatrix4x4("projection", camera->GetProjection());
@@ -308,7 +280,6 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	vs->SetShaderResourceView("Particles", particleDataSRV);
 	
 	context->DrawIndexed(liveCount * 6, 0, 0);
-
 }
 
 /// <summary>
@@ -316,10 +287,9 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 /// </summary>
 /// <param name="start"></param>
 /// <param name="end"></param>
-void Emitter::SendToGPU(int start, int end)
+void Emitter::SendToGPU(int start, int end, D3D11_MAPPED_SUBRESOURCE& mapped)
 {
-	D3D11_MAPPED_SUBRESOURCE mapped = {};
-	context->Map(particleBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+	
 
 	memcpy(
 		mapped.pData,
