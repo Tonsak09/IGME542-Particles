@@ -412,17 +412,38 @@ void Game::LoadAssetsAndCreateEntities()
 
 void Game::GenerateEmitters()
 {
+	// A depth state for the particles
+	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Turns off depth writing
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	device->CreateDepthStencilState(&dsDesc, particleDepthState.GetAddressOf());
+
+	// Blend for particles (additive)
+	D3D11_BLEND_DESC blend = {};
+	blend.AlphaToCoverageEnable = false;
+	blend.IndependentBlendEnable = false;
+	blend.RenderTarget[0].BlendEnable = true;
+	blend.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blend.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA; // Still respect pixel shader output alpha
+	blend.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blend.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blend.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	device->CreateBlendState(&blend, particleBlendState.GetAddressOf());
+
 	std::shared_ptr<SimpleVertexShader> particleVS = LoadShader(SimpleVertexShader, L"ParticleVS.cso");
 	std::shared_ptr<SimplePixelShader> particlePS = LoadShader(SimplePixelShader, L"ParticlePS.cso");
 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleTexture;
-	LoadTexture(L"../../Assets/Textures/Particles/", particleTexture);
-	
+	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/circle_04.png", particleTexture);
+	// L"../../Assets/Textures/rough_albedo.png"
 	
 	// Create particle materials
 	std::shared_ptr<Material> standardParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	standardParticle->AddSampler("BasicSampler", samplerOptions);
-	standardParticle->AddTextureSRV("Particle", particleTexture);
+	standardParticle->AddTextureSRV("Particle", particleTexture); // Used in ps and sent in by material
 
 
 	emitter = std::make_shared<Emitter>(
@@ -563,10 +584,18 @@ void Game::Draw(float deltaTime, float totalTime)
 	if(showPointLights)
 		DrawPointLights();
 
-	emitter->Draw(camera);
+	
 
 	// Draw the sky
 	sky->Draw(camera);
+
+	context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);	// Additive blending
+	context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth WRITING
+	emitter->Draw(camera);
+	// Reset to default states for next frame
+	context->OMSetBlendState(0, 0, 0xffffffff);
+	context->OMSetDepthStencilState(0, 0);
+	context->RSSetState(0);
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME

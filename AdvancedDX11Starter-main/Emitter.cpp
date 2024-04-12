@@ -6,7 +6,8 @@
 
 #include "Helpers.h"
 
-Emitter::Emitter(float pLifetime, int emitRate, int maxParticles, std::shared_ptr<Material> pMat, 
+Emitter::Emitter(float pLifetime, int emitRate, int maxParticles, 
+	std::shared_ptr<Material> pMat, 
 	Microsoft::WRL::ComPtr<ID3D11Device> device,
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context) :
 	pLifetime(pLifetime), emitRate(emitRate), ringBufferSize(maxParticles), material(pMat), device(device), context(context)
@@ -21,7 +22,7 @@ Emitter::Emitter(float pLifetime, int emitRate, int maxParticles, std::shared_pt
 	liveEnd = 0;
 	liveCount = 0;
 
-	transform = std::make_shared<Transform>();
+	transform = Transform();
 
 	InitBuffers();
 }
@@ -32,38 +33,75 @@ Emitter::~Emitter()
 
 void Emitter::InitBuffers()
 {
-	// Don't store a vertex buffer since we will be 
-	// making our 
-	UINT stride = 0;
-	UINT offset = 0;
-	ID3D11Buffer* nullBuffer = 0;
-	context->IASetVertexBuffers(0, 1, &nullBuffer, &stride, &offset);
-	context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+	//// Don't store a vertex buffer since we will be 
+	//// making our 
+	//UINT stride = 0;
+	//UINT offset = 0;
+	//ID3D11Buffer* nullBuffer = 0;
+	//context->IASetVertexBuffers(0, 1, &nullBuffer, &stride, &offset);
+	//context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-	// Send data to vertex shader 
-	/*std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
-	vs->SetShaderResourceView("Particles", particleDataSRV);*/
+	//// Send data to vertex shader 
+	///*std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
+	//vs->SetShaderResourceView("Particles", particleDataSRV);*/
 
-	// Populate the buffer with data 
-	D3D11_BUFFER_DESC allParticleBufferDesc = {};
-	allParticleBufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	allParticleBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	allParticleBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	allParticleBufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-	allParticleBufferDesc.StructureByteStride = sizeof(Particle);
-	allParticleBufferDesc.ByteWidth = sizeof(Particle) * ringBufferSize;
-	device->CreateBuffer(&allParticleBufferDesc, 0, particleBuffer.GetAddressOf());
+	//// Populate the buffer with data 
+	//D3D11_BUFFER_DESC allParticleBufferDesc = {};
+	//allParticleBufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	//allParticleBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	//allParticleBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	//allParticleBufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	//allParticleBufferDesc.StructureByteStride = sizeof(Particle);
+	//allParticleBufferDesc.ByteWidth = sizeof(Particle) * ringBufferSize;
+	//device->CreateBuffer(&allParticleBufferDesc, 0, particleBuffer.GetAddressOf());
 
-	// Connect our shader resource view to the buffer of particles 
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = ringBufferSize;
-	device->CreateShaderResourceView(particleBuffer.Get(), &srvDesc, particleDataSRV.GetAddressOf());
+	//// Connect our shader resource view to the buffer of particles 
+	//D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	//srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	//srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	//srvDesc.Buffer.FirstElement = 0;
+	//srvDesc.Buffer.NumElements = ringBufferSize;
+	//device->CreateShaderResourceView(particleBuffer.Get(), &srvDesc, particleDataSRV.GetAddressOf());
 
 
-	// Letus make our index buffer!!! YAhhooo! 
+	//// Letus make our index buffer!!! YAhhooo! 
+	//int numIndices = ringBufferSize * 6;
+	//unsigned int* indices = new unsigned int[numIndices];
+	//int indexCount = 0;
+	//for (int i = 0; i < ringBufferSize * 4; i += 4)
+	//{
+	//	indices[indexCount++] = i;
+	//	indices[indexCount++] = i + 1;
+	//	indices[indexCount++] = i + 2;
+	//	indices[indexCount++] = i;
+	//	indices[indexCount++] = i + 2;
+	//	indices[indexCount++] = i + 3;
+	//}
+	//D3D11_SUBRESOURCE_DATA indexData = {};
+	//indexData.pSysMem = indices;
+	//delete[] indices;
+
+	//// Set indicies to index buffer 
+	//D3D11_BUFFER_DESC ibDesc = {};
+	//ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//ibDesc.CPUAccessFlags = 0;
+	//ibDesc.Usage = D3D11_USAGE_DEFAULT;
+	//ibDesc.ByteWidth = sizeof(unsigned int) * ringBufferSize * 6;
+	//device->CreateBuffer(&ibDesc, &indexData, indexBuffer.GetAddressOf());
+
+
+	// Delete and release existing resources
+	if (particles) delete[] particles;
+	indexBuffer.Reset();
+	particleBuffer.Reset();
+	particleDataSRV.Reset();
+
+	// Set up the particle array
+	particles = new Particle[ringBufferSize];
+	ZeroMemory(particles, sizeof(Particle) * ringBufferSize);
+
+	// Create an index buffer for particle drawing
+	// indices as if we had two triangles per particle
 	int numIndices = ringBufferSize * 6;
 	unsigned int* indices = new unsigned int[numIndices];
 	int indexCount = 0;
@@ -78,15 +116,35 @@ void Emitter::InitBuffers()
 	}
 	D3D11_SUBRESOURCE_DATA indexData = {};
 	indexData.pSysMem = indices;
-	delete[] indices;
 
-	// Set indicies to index buffer 
+	// Regular (static) index buffer
 	D3D11_BUFFER_DESC ibDesc = {};
 	ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	ibDesc.CPUAccessFlags = 0;
 	ibDesc.Usage = D3D11_USAGE_DEFAULT;
 	ibDesc.ByteWidth = sizeof(unsigned int) * ringBufferSize * 6;
 	device->CreateBuffer(&ibDesc, &indexData, indexBuffer.GetAddressOf());
+	delete[] indices; // Sent to GPU already
+
+	// Make a dynamic buffer to hold all particle data on GPU
+	// Note: We'll be overwriting this every frame with new lifetime data
+	D3D11_BUFFER_DESC allParticleBufferDesc = {};
+	allParticleBufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	allParticleBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	allParticleBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	allParticleBufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	allParticleBufferDesc.StructureByteStride = sizeof(Particle);
+	allParticleBufferDesc.ByteWidth = sizeof(Particle) * ringBufferSize;
+	device->CreateBuffer(&allParticleBufferDesc, 0, particleBuffer.GetAddressOf());
+
+	// Create an SRV that points to a structured buffer of particles
+	// so we can grab this data in a vertex shader
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = ringBufferSize;
+	device->CreateShaderResourceView(particleBuffer.Get(), &srvDesc, particleDataSRV.GetAddressOf());
 }
 
 /// <summary>
@@ -227,6 +285,10 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	// Unmap now that we're done copying
 	context->Unmap(particleBuffer.Get(), 0);
 
+
+
+
+
 	UINT stride = 0;
 	UINT offset = 0;
 	ID3D11Buffer* nullBuffer = 0;
@@ -235,7 +297,7 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 
 	// Set particle-specific data and let the
 	// material take care of the rest
-	material->PrepareMaterial(transform.get(), camera);
+	material->PrepareMaterial(&transform, camera);
 
 	std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
 	vs->SetMatrix4x4("view", camera->GetView());

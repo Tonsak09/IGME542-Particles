@@ -57,7 +57,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleDataSRV;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
 
-	std::shared_ptr<Transform> transform;
+	Transform transform;
 	std::shared_ptr<Material> material;
 
 	std::shared_ptr<SimpleVertexShader> vs;
