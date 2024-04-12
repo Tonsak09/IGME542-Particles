@@ -15,6 +15,7 @@ struct VertexToPixel
 {
 	float4 pos : SV_POSITION; // The world position of this PIXEL
 	float2 uv  : TEXCOORD;
+    float4 tint : COLOR;
 };
 
 StructuredBuffer<Particle> Particles : register(t0);
@@ -23,20 +24,15 @@ VertexToPixel main(uint id : SV_VertexID)
 {
 	VertexToPixel output;
 
-	// Get id info
+	// id
     uint particleID = id / 4; // Every group of 4 verts are ONE particle!
     uint cornerID = id % 4; // 0,1,2,3 = the corner of the particle "quad"
 
-	// Grab one particle and its starting position
     Particle p = Particles.Load(particleID);
 
-	// Constant accleration function to determine the particle's
-	// current location based on age, start velocity and accel
-    float3 pos = float3(0, 0, 0);
-
-	// Size interpolation
+    float3 pos = p.startPos; //
     float size = 1.0f;
-
+    output.tint = float4(p.startPos, 1.0);
 	// Offsets for the 4 corners of a quad - we'll only
 	// use one for each vertex, but which one depends
 	// on the cornerID above.
@@ -46,7 +42,6 @@ VertexToPixel main(uint id : SV_VertexID)
     offsets[2] = float2(+1.0f, -1.0f); // BR
     offsets[3] = float2(-1.0f, -1.0f); // BL
 	
-	//// Handle rotation - get sin/cos and build a rotation matrix
     float s, c, rotation = lerp(0.0f, 45.0f, 0.0f);
     sincos(rotation, s, c); // One function to calc both sin and cos
     float2x2 rot =
@@ -55,18 +50,15 @@ VertexToPixel main(uint id : SV_VertexID)
 		-s, c
     };
 
-	// Rotate the offset for this corner and apply size
+	// Using 0,0 as the origin we rotate each corner around that then 
+    // include the size scaler 
     float2 rotatedOffset = mul(offsets[cornerID], rot) * size;
 
-	// Billboarding!
-	// Offset the position based on the camera's right and up vectors
+	// Fancy billboarding equation that Prof supplied 
     pos += float3(view._11, view._12, view._13) * rotatedOffset.x; // RIGHT
     pos += (false ? float3(0, 1, 0) : float3(view._21, view._22, view._23)) * rotatedOffset.y; // UP
 
-    //pos += float3(offsets[cornerID], 0.0f); // RIGHT
-
-
-	// Calculate output position
+	// Send position into camera space 
     matrix viewProj = mul(projection, view);
     output.pos = mul(viewProj, float4(pos, 1.0f));
 
