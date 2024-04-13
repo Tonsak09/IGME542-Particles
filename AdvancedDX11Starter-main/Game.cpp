@@ -12,6 +12,8 @@
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
 
+#include "AnimCurves.h";
+
 
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
@@ -436,23 +438,98 @@ void Game::GenerateEmitters()
 	std::shared_ptr<SimpleVertexShader> particleVS = LoadShader(SimpleVertexShader, L"ParticleVS.cso");
 	std::shared_ptr<SimplePixelShader> particlePS = LoadShader(SimplePixelShader, L"ParticlePS.cso");
 
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleTexture;
-	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/circle_04.png", particleTexture);
+
 	
 	// Create particle materials
+
+	// Magic 
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> particleTexture;
+	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/magic_02.png", particleTexture);
+
 	std::shared_ptr<Material> standardParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	standardParticle->AddSampler("BasicSampler", samplerOptions);
 	standardParticle->AddTextureSRV("Particle", particleTexture); // Used in ps and sent in by material
 
+	// Rain(ish)
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> traceTexture;
+	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/trace_02.png", traceTexture);
 
-	emitter = std::make_shared<Emitter>(
-		1.0f,
-		10,
-		100,
+	std::shared_ptr<Material> rainParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	rainParticle->AddSampler("BasicSampler", samplerOptions);
+	rainParticle->AddTextureSRV("Particle", traceTexture); // Used in ps and sent in by material
+
+
+	// Portal 
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> portTexture;
+	LoadTexture(L"../../Assets/Textures/Particles/PNG (Transparent)/light_01.png", portTexture);
+
+	std::shared_ptr<Material> portParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	portParticle->AddSampler("BasicSampler", samplerOptions);
+	portParticle->AddTextureSRV("Particle", portTexture); // Used in ps and sent in by material
+
+	// Add emitters
+
+	emitters.push_back(std::make_shared<Emitter>( // Maggiiiiiccc
+		1.0f, // Lifetime
+		10, // Emit rate
+		100, // max particles 
+		3.0f, // Spawn range (sphere)
+		XMFLOAT3(1.0f, 1.0f, 1.0f), // start scale
+		XMFLOAT3(5.0f, 5.0f, 5.0f), // target scale
+		EASE_IN_SINE, // scale curve 
+		XMFLOAT4(1.0f, 2.0f, 0.0f, 1.0f), // start color
+		XMFLOAT4(0.2f, 0.0f, 1.0f, 0.0f), // target color 
+		EASE_OUT_CIRC,// Color curve 
+		0.0f, // Start rot
+		45.0f, // Target rot 
+		EASE_OUT_ELASTIC,
+		0.1f, // noise scale 
+		0.0f, // gravity 
 		standardParticle,
 		device,
-		context);
-		// \Assets\Textures\Particles\PNG (Transparent)
+		context));
+
+	emitters.push_back(std::make_shared<Emitter>( // Rain?
+		1.0f, // Lifetime
+		100, // Emit rate
+		1000, // max particles 
+		3.0f, // Spawn range (sphere)
+		XMFLOAT3(1.0f, 1.0f, 1.0f), // start scale
+		XMFLOAT3(1.0f, 1.0f, 1.0f), // target scale
+		EASE_IN_SINE, // scale curve 
+		XMFLOAT4(0.1f, 0.1f, 5.0f, 1.0f), // start color
+		XMFLOAT4(0.2f, 0.5f, 5.0f, 0.3f), // target color 
+		EASE_OUT_CIRC,// Color curve 
+		0.0f, // Start rot
+		0.0f, // Target rot 
+		EASE_OUT_ELASTIC,
+		0.0f, // noise scale 
+		-10.0f, // gravity 
+		rainParticle,
+		device,
+		context));
+	emitters[emitters.size() - 1]->SetPosition(XMFLOAT3(-3.0f, 0.0f, 0.0f));
+
+	emitters.push_back(std::make_shared<Emitter>( // OooooOOOoo 
+		2.0f, // Lifetime
+		3, // Emit rate
+		50, // max particles 
+		0.0f, // Spawn range (sphere)
+		XMFLOAT3(1.0f, 1.0f, 1.0f), // start scale
+		XMFLOAT3(0.1f, 0.1f, 0.1f), // target scale
+		EASE_IN_SINE, // scale curve 
+		XMFLOAT4(4.1f, 0.1f, 0.0f, 1.0f), // start color
+		XMFLOAT4(0.2f, 0.5f, 5.0f, 0.0f), // target color 
+		EASE_OUT_CIRC,// Clor curve 
+		0.0f, // Start rot
+		90.0f, // Target rot 
+		EASE_OUT_ELASTIC,
+		0.0f, // noise scale 
+		0.0f, // gravity 
+		portParticle,
+		device,
+		context));
+	emitters[emitters.size() - 1]->SetPosition(XMFLOAT3(-6.0f, 0.0f, 0.0f));
 }
 
 // --------------------------------------------------------
@@ -535,8 +612,11 @@ void Game::Update(float deltaTime, float totalTime)
 	camera->Update(deltaTime);
 
 	// Update Particles
-	emitter->Update(deltaTime);
-
+	for (auto emitter : emitters)
+	{
+		emitter->Update(deltaTime);
+	}
+	
 	// Check individual input
 	Input& input = Input::GetInstance();
 	if (input.KeyDown(VK_ESCAPE)) Quit();
@@ -591,7 +671,12 @@ void Game::Draw(float deltaTime, float totalTime)
 	{ // Emitters 
 		context->OMSetBlendState(particleBlendState.Get(), 0, 0xffffffff);	// Additive blending
 		context->OMSetDepthStencilState(particleDepthState.Get(), 0);		// No depth WRITING
-		emitter->Draw(camera);
+		
+		for (auto emitter : emitters)
+		{
+			emitter->Draw(camera);
+		}
+
 		// Reset to default states for next frame
 		context->OMSetBlendState(0, 0, 0xffffffff);
 		context->OMSetDepthStencilState(0, 0);

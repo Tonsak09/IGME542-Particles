@@ -6,11 +6,31 @@
 
 #include "Helpers.h"
 
-Emitter::Emitter(float pLifetime, int emitRate, int maxParticles, 
+Emitter::Emitter(float pLifetime, int emitRate, int maxParticles, float spawnRange,
+	XMFLOAT3 startScale,
+	XMFLOAT3 targetScale,
+	int scaleCurve,
+	XMFLOAT4 startColor,
+	XMFLOAT4 targetColor,
+	int colorCurve,
+	float startRot,
+	float targetRot,
+	int rotCurve,
+	float noiseScale,
+	float gravity,
 	std::shared_ptr<Material> pMat, 
 	Microsoft::WRL::ComPtr<ID3D11Device> device,
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context) :
-	pLifetime(pLifetime), emitRate(emitRate), ringBufferSize(maxParticles), material(pMat), device(device), context(context)
+	pLifetime(pLifetime), emitRate(emitRate), ringBufferSize(maxParticles), spawnRange(spawnRange),
+	startScale(startScale), targetScale(targetScale),
+	scaleCurve(scaleCurve),
+	startRot(startRot), targetRot(targetRot),
+	rotCurve(rotCurve),
+	startColor(startColor), targetColor(targetColor),
+	colorCurve(colorCurve),
+	noiseScale(noiseScale),
+	gravity(gravity),
+	material(pMat), device(device), context(context)
 {
 	currentTime = 0.0f;
 	timeSinceLastEmit = 0.0f;
@@ -36,7 +56,7 @@ void Emitter::InitBuffers()
 	// We do not need a vertex buffer because we make our own verticies! 
 
 
-	// Delete and release existing resources
+	// Used to cleanup if we want to reset our particle system later 
 	if (particles) delete[] particles;
 	indexBuffer.Reset();
 	particleBuffer.Reset();
@@ -44,7 +64,6 @@ void Emitter::InitBuffers()
 
 	// Set up the particle array
 	particles = new Particle[ringBufferSize];
-	ZeroMemory(particles, sizeof(Particle) * ringBufferSize);
 
 	// Letus make our index buffer!!! YAhhooo! 
 	int numIndices = ringBufferSize * 6;
@@ -145,7 +164,14 @@ void Emitter::Update(float delta)
 			{
 				Particle next = Particle();
 				next.emitTime = currentTime;
-				next.startPos = XMFLOAT3(0.0, 1.0, 0.0);
+
+				XMFLOAT3 world = transform.GetPosition();
+				XMFLOAT3 randInRange = XMFLOAT3(((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange);
+				XMVECTOR pos = XMLoadFloat3(&world) + XMLoadFloat3(&randInRange);
+				XMFLOAT3 finalPos;
+				XMStoreFloat3(&finalPos, pos);
+
+				next.startPos = finalPos;
 
 				particles[i] = next;
 			}
@@ -158,7 +184,14 @@ void Emitter::Update(float delta)
 			{
 				Particle next = Particle();
 				next.emitTime = currentTime;
-				next.startPos = XMFLOAT3(0.0, 1.0, 0.0);
+				
+				XMFLOAT3 world = transform.GetPosition();
+				XMFLOAT3 randInRange = XMFLOAT3(((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange);
+				XMVECTOR pos = XMLoadFloat3(&world) + XMLoadFloat3(&randInRange);
+				XMFLOAT3 finalPos;
+				XMStoreFloat3(&finalPos, pos);
+
+				next.startPos = finalPos;
 
 				particles[i] = next;
 			}
@@ -174,7 +207,14 @@ void Emitter::Update(float delta)
 				// Set new particle 
 				Particle next = Particle();
 				next.emitTime = currentTime;
-				next.startPos = XMFLOAT3(((double)rand() / RAND_MAX) * 5.0, ((double)rand() / RAND_MAX) * 5.0f, ((double)rand() / RAND_MAX) * 5.0f);
+				
+				XMFLOAT3 world = transform.GetPosition();
+				XMFLOAT3 randInRange = XMFLOAT3(((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange, ((double)rand() / RAND_MAX) * spawnRange);
+				XMVECTOR pos = XMLoadFloat3(&world) + XMLoadFloat3(&randInRange);
+				XMFLOAT3 finalPos;
+				XMStoreFloat3(&finalPos, pos);
+
+				next.startPos = finalPos;
 
 				particles[liveEnd + i] = next;
 			}
@@ -198,10 +238,12 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	// Now that we have emit and updated all particles for this frame, 
 	// we can copy them to the GPU as either one big chunk or two smaller chunks
 
+	// Double Copy from slides: https://mycourses.rit.edu/d2l/le/content/1073201/viewContent/9944515/View
+
 	// Map the buffer
 	D3D11_MAPPED_SUBRESOURCE mapped = {};
 	context->Map(particleBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
+	 
 	// How are living particles arranged in the buffer?
 	if (liveStart < liveEnd)
 	{
@@ -229,8 +271,6 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	// Unmap now that we're done copying
 	context->Unmap(particleBuffer.Get(), 0);
 
-
-
 	UINT stride = 0;
 	UINT offset = 0;
 	ID3D11Buffer* nullBuffer = 0;
@@ -244,7 +284,22 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
 	vs->SetMatrix4x4("view", camera->GetView());
 	vs->SetMatrix4x4("projection", camera->GetProjection());
+
+	vs->SetFloat4("startScale", XMFLOAT4(startScale.x, startScale.y, startScale.z, 0.0f));
+	vs->SetFloat4("targetScale", XMFLOAT4(targetScale.x, targetScale.y, targetScale.z, 0.0f));
+	vs->SetInt("scaleAnimCurve", scaleCurve);
+	vs->SetFloat("startRot", startRot);
+	vs->SetFloat("targetRot", targetRot);
+	vs->SetInt("rotAnimCurve", rotCurve);
+	vs->SetFloat4("startColor", startColor);
+	vs->SetFloat4("targetColor", targetColor);
+	vs->SetInt("colorAnimCurve", colorCurve);
+
+	vs->SetFloat("noiseScale", noiseScale);
+	vs->SetFloat("gravity", gravity);
 	vs->SetFloat("currentTime", currentTime);
+	vs->SetFloat("pLifetime", pLifetime);
+
 	vs->CopyAllBufferData();
 
 	// Send to structured buffer 
@@ -252,6 +307,7 @@ void Emitter::Draw(std::shared_ptr<Camera> camera)
 	
 	context->DrawIndexed(liveCount * 6, 0, 0);
 }
+
 
 /// <summary>
 /// Sends particle specific information to the GPU
@@ -264,4 +320,9 @@ void Emitter::SendToGPU(int start, int end, D3D11_MAPPED_SUBRESOURCE& mapped)
 		mapped.pData,
 		particles + start, // Go to beginning 
 		sizeof(Particle) * (end - start)); // How much after 
+}
+
+void Emitter::SetPosition(XMFLOAT3 pos)
+{
+	transform.SetPosition(pos);
 }

@@ -67,7 +67,7 @@ private:
 	// Particles
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;
 	Microsoft::WRL::ComPtr<ID3D11BlendState> particleBlendState;
-	std::shared_ptr<Emitter> emitter;
+	std::vector<std::shared_ptr<Emitter>> emitters;
 	
 	// Should the ImGui demo window be shown?
 	bool showUIDemoWindow;

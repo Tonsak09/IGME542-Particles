@@ -21,7 +21,20 @@ struct Particle
 class Emitter
 {
 public:
-	Emitter(float pLifetime, int emitRate, int maxParticles, std::shared_ptr<Material> pMat,
+	Emitter(
+		float pLifetime, int emitRate, int maxParticles, float spawnRange, // Necessary attributes 
+		XMFLOAT3 startScale,
+		XMFLOAT3 targetScale,
+		int scaleCurve,
+		XMFLOAT4 startColor,
+		XMFLOAT4 targetColor,
+		int colorCurve,
+		float startRot,
+		float targetRot,
+		int rotCurve,
+		float noiseScale,
+		float gravity,
+		std::shared_ptr<Material> pMat,
 		Microsoft::WRL::ComPtr<ID3D11Device> device,
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context);
 	~Emitter();
@@ -35,6 +48,7 @@ public:
 	/// </summary>
 	void Draw(std::shared_ptr<Camera> camera);
 
+	void SetPosition(XMFLOAT3 pos);
 
 private:
 	// Particle Info 
@@ -42,6 +56,8 @@ private:
 	int liveStart;
 	int liveEnd;
 	int liveCount;
+
+	float spawnRange; 
 
 	float currentTime; 
 	int ringBufferSize;
@@ -57,11 +73,14 @@ private:
 	XMFLOAT3 startScale;
 	XMFLOAT3 targetScale;
 	int scaleCurve;
+	float startRot;
+	float targetRot;
+	int rotCurve;
 	XMFLOAT4 startColor;
 	XMFLOAT4 targetColor;
 	int colorCurve;
 	float gravityScale;
-	float rotSpeed;
+	float gravity;
 
 
 	// Rendering Resources 
