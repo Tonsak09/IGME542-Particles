@@ -55,6 +55,7 @@ private:
 	void LoadAssetsAndCreateEntities();
 	void GenerateLights();
 	void GenerateEmitters();
+	void GenerateCompute();
 	void DrawPointLights();
 
 	// UI functions
@@ -69,6 +70,16 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11BlendState> particleBlendState;
 	std::vector<std::shared_ptr<Emitter>> emitters;
 	
+	// Computer shader 
+	std::shared_ptr<SimpleComputeShader> computeShader;
+	unsigned int computeOutTexSize;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> computeTextureSRV;  // Output of compute shader 
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> computeTextureUAV;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> metaBallBuffer;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metaBallSRV;
+	MetalBall* balls;
+	int ballCount;
+
 	// Should the ImGui demo window be shown?
 	bool showUIDemoWindow;
 };

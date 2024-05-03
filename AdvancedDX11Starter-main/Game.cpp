@@ -49,6 +49,8 @@ Game::Game(HINSTANCE hInstance)
 	camera(0),
 	sky(0),
 	lightCount(0),
+	computeOutTexSize(256),
+	ballCount(1),
 	showUIDemoWindow(false),
 	showPointLights(false)
 {
@@ -74,6 +76,8 @@ Game::~Game()
 	// we don't need to explicitly clean up those DirectX objects
 	// - If we weren't using smart pointers, we'd need
 	//   to call Release() on each DirectX object
+
+	delete[] balls;
 
 	// ImGui clean up
 	ImGui_ImplDX11_Shutdown();
@@ -108,6 +112,9 @@ void Game::Init()
 
 	// Create Emitters
 	GenerateEmitters();
+
+	// Setup compute shader 
+	GenerateCompute();
 
 	// Set initial graphics API state
 	//  - These settings persist until we change them
@@ -144,6 +151,8 @@ void Game::LoadAssetsAndCreateEntities()
 	
 	std::shared_ptr<SimpleVertexShader> skyVS = LoadShader(SimpleVertexShader, L"SkyVS.cso");
 	std::shared_ptr<SimplePixelShader> skyPS  = LoadShader(SimplePixelShader, L"SkyPS.cso");
+
+	computeShader = LoadShader(SimpleComputeShader, L"ComputeShader.cso");
 
 	// Make the meshes
 	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(L"../../Assets/Models/sphere.obj").c_str(), device);
@@ -532,6 +541,69 @@ void Game::GenerateEmitters()
 	emitters[emitters.size() - 1]->SetPosition(XMFLOAT3(-6.0f, 0.0f, 0.0f));
 }
 
+void Game::GenerateCompute()
+{
+	// NOTE: We need to create a texture that the 
+	//		 compute shader will be running to. We
+	//		 then can set our back buffer to this 
+	//		 desired texture 
+
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> comOutTex; 
+	D3D11_TEXTURE2D_DESC texDesc = {};
+	texDesc.Width = computeOutTexSize;
+	texDesc.Height = computeOutTexSize;
+	texDesc.ArraySize = 1;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.MipLevels = 1;
+	texDesc.MiscFlags = 0;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	device->CreateTexture2D(&texDesc, 0, comOutTex.GetAddressOf());
+
+	// Create SRV
+	device->CreateShaderResourceView(comOutTex.Get(), 0, &computeTextureSRV);
+
+	// Connect the resource with our uav
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = texDesc.Format;
+	uavDesc.Texture2D.MipSlice = 0;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+	device->CreateUnorderedAccessView(comOutTex.Get(), &uavDesc, &computeTextureUAV);
+
+
+	{ // Meta balls 
+
+		// Create meta balls 
+		balls = new MetalBall[ballCount];
+		balls[0].pos = XMFLOAT2(100, 100);
+		balls[0].radius = 10.0f;
+
+		// Populate the buffer with initial data 
+		D3D11_BUFFER_DESC allOffsetMatBufferDesc = {};
+		allOffsetMatBufferDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		allOffsetMatBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		allOffsetMatBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		allOffsetMatBufferDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+		allOffsetMatBufferDesc.StructureByteStride = sizeof(MetalBall);
+		allOffsetMatBufferDesc.ByteWidth = sizeof(MetalBall) * ballCount;
+		device->CreateBuffer(&allOffsetMatBufferDesc, 0, metaBallBuffer.GetAddressOf());
+
+		// Connect our shader resource view to the buffer of particles 
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		srvDesc.Buffer.FirstElement = 0;
+		srvDesc.Buffer.NumElements = ballCount;
+		device->CreateShaderResourceView(metaBallBuffer.Get(), &srvDesc, metaBallSRV.GetAddressOf());
+	}
+
+	
+}
+
+
 // --------------------------------------------------------
 // Generates the lights in the scene: 3 directional lights
 // and many random point lights.
@@ -683,6 +755,36 @@ void Game::Draw(float deltaTime, float totalTime)
 		context->RSSetState(0);
 	}
 
+	{ // Compute shader 
+
+
+		{ // Memcopy ball data 
+			D3D11_MAPPED_SUBRESOURCE mapped = {};
+			context->Map(metaBallBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+
+			memcpy(
+				mapped.pData,
+				balls,
+				sizeof(MetalBall) * ballCount);
+
+			// Unmap now that we're done copying
+			context->Unmap(metaBallBuffer.Get(), 0);
+		}
+
+		// Prepare data
+		computeShader->SetShader();
+		computeShader->SetUnorderedAccessView("outputTexture", computeTextureUAV);
+		computeShader->SetShaderResourceView("balls", metaBallSRV);
+
+		// Set data 
+		computeShader->CopyAllBufferData();
+
+		// Dispatch the compute shader
+		computeShader->DispatchByThreads(computeOutTexSize, computeOutTexSize, 1);
+
+		// Unbind the texture so we can use it later in draw
+		computeShader->SetUnorderedAccessView("outputTexture", 0);
+	}
 	
 
 	// Frame END
@@ -919,6 +1021,16 @@ void Game::BuildUI()
 				}
 				ImGui::PopID();
 			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		if (ImGui::TreeNode("Compute Shader Options"))
+		{
+
+			ImVec2 size = ImGui::GetItemRectSize();
+			ImGui::Image(computeTextureSRV.Get(), ImVec2(size.x, size.x));
 
 			// Finalize the tree node
 			ImGui::TreePop();

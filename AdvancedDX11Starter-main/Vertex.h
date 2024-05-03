@@ -14,3 +14,9 @@ struct Vertex
 	DirectX::XMFLOAT3 Normal;		// Lighting
 	DirectX::XMFLOAT3 Tangent;		// Normal mapping
 };
+
+struct MetalBall
+{
+	DirectX::XMFLOAT2 pos;
+	float radius;
+};
