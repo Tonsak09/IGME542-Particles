@@ -18,6 +18,7 @@
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
+#include <random>
 
 // For the DirectX Math library
 using namespace DirectX;
@@ -29,6 +30,18 @@ using namespace DirectX;
 #define LoadTexture(file, srv) CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(file).c_str(), 0, srv.GetAddressOf())
 #define LoadShader(type, file) std::make_shared<type>(device.Get(), context.Get(), FixPath(file).c_str())
 
+
+float RandomFloat(float min, float max) {
+	// Seed the random number generator
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	// Define a uniform distribution over the range [min, max)
+	std::uniform_real_distribution<float> dist(min, max);
+
+	// Generate and return a random float
+	return dist(gen);
+}
 
 // --------------------------------------------------------
 // Constructor
@@ -50,7 +63,7 @@ Game::Game(HINSTANCE hInstance)
 	sky(0),
 	lightCount(0),
 	computeOutTexSize(256),
-	ballCount(1),
+	ballCount(3),
 	showUIDemoWindow(false),
 	showPointLights(false)
 {
@@ -578,8 +591,14 @@ void Game::GenerateCompute()
 
 		// Create meta balls 
 		balls = new MetalBall[ballCount];
-		balls[0].pos = XMFLOAT2(100, 100);
-		balls[0].radius = 10.0f;
+
+		for (int i = 0; i < ballCount; i++)
+		{
+			balls[i].pos = XMFLOAT2(RandomFloat(0, 250), RandomFloat(0, 250));
+			balls[i].radius = RandomFloat(10, 20);
+		}
+
+		
 
 		// Populate the buffer with initial data 
 		D3D11_BUFFER_DESC allOffsetMatBufferDesc = {};
