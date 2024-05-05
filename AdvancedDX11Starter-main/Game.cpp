@@ -43,6 +43,8 @@ float RandomFloat(float min, float max) {
 	return dist(gen);
 }
 
+
+
 // --------------------------------------------------------
 // Constructor
 //
@@ -594,8 +596,9 @@ void Game::GenerateCompute()
 
 		for (int i = 0; i < ballCount; i++)
 		{
-			balls[i].pos = XMFLOAT2(RandomFloat(0, 250), RandomFloat(0, 250));
-			balls[i].radius = RandomFloat(10, 20);
+			balls[i].color = XMFLOAT3(RandomFloat(4, 5), RandomFloat(4, 5), RandomFloat(4, 5));
+			balls[i].pos = XMFLOAT2(RandomFloat(50, 150), RandomFloat(50, 150));
+			balls[i].radius = RandomFloat(20, 40);
 		}
 
 		
@@ -706,6 +709,21 @@ void Game::Update(float deltaTime, float totalTime)
 	for (auto emitter : emitters)
 	{
 		emitter->Update(deltaTime);
+	}
+
+	// Update MetaBalls
+	for (int i = 0; i < ballCount; i++)
+	{
+		XMFLOAT2 c = balls[i].pos;
+		float timeX = balls[i].color.x * 100.0f + totalTime;
+		float timeY = balls[i].color.y * 100.0f + totalTime;
+		XMFLOAT2 diff = XMFLOAT2(sin(timeX) / 100.0f, sin(timeY) / 100.0f) ;
+		XMVECTOR current = XMLoadFloat2(&balls[i].pos);
+
+		current += XMLoadFloat2(&diff);
+		XMStoreFloat2(&c, current);
+
+		balls[i].pos = c;
 	}
 	
 	// Check individual input

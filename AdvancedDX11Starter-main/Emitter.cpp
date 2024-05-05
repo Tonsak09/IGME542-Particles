@@ -227,7 +227,7 @@ void Emitter::Update(float delta)
 		liveCount += count;
 	}
 
-	printf("Start: %i End: %i \n", liveStart, liveEnd);
+	//printf("Start: %i End: %i \n", liveStart, liveEnd);
 }
 
 /// <summary>

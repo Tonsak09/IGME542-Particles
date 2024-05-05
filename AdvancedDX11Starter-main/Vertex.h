@@ -17,6 +17,7 @@ struct Vertex
 
 struct MetalBall
 {
+	DirectX::XMFLOAT3 color;
 	DirectX::XMFLOAT2 pos;
 	float radius;
 };
