@@ -20,12 +20,21 @@ float InverseLerp(float a, float b, float x)
 void main( uint3 DTid : SV_DispatchThreadID )
 {
     float2 pixelPos = float2(DTid.x, DTid.y);
-    
-    float2 ballCenter = balls[0].pos;
-    float distance = length(pixelPos - ballCenter) - balls[0].radius;
-    
+
+    float total = 0.0f; 
+    for (int i = 0; i < 3; i++)
+    {
+        float2 ballCenter = balls[i].pos;
+        float distance = length(pixelPos - ballCenter) - balls[i].radius;
+
+        total += (distance < 0.0f) ? 1.0f : pow( balls[i].radius / distance, 2.0f);
+    }
+
+    total = clamp(total, 0, 1);
+
     // Inverse lerp 
+    float4 color = float4(total, total, total, 1.0);
     
-    outputTexture[DTid.xy] = float4(distance, distance, distance, 1.0f);
+    outputTexture[DTid.xy] = color;
     
 }

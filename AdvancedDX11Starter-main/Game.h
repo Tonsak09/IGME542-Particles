@@ -64,6 +64,7 @@ private:
 	void CameraUI(std::shared_ptr<Camera> cam);
 	void EntityUI(std::shared_ptr<GameEntity> entity);	
 	void LightUI(Light& light);
+	void MetaBallControll(MetalBall* ball);
 
 	// Particles
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;

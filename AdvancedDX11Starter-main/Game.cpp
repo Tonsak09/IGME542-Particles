@@ -1047,6 +1047,12 @@ void Game::BuildUI()
 
 		if (ImGui::TreeNode("Compute Shader Options"))
 		{
+			for (int i = 0; i < ballCount; i++)
+			{
+				ImGui::PushID(i);
+				MetaBallControll(&balls[i]);
+				ImGui::PopID();
+			}
 
 			ImVec2 size = ImGui::GetItemRectSize();
 			ImGui::Image(computeTextureSRV.Get(), ImVec2(size.x, size.x));
@@ -1189,3 +1195,9 @@ void Game::LightUI(Light& light)
 }
 
 
+void Game::MetaBallControll(MetalBall* ball)
+{
+	float pos[] = { ball->pos.x, ball->pos.y };
+	if (ImGui::DragFloat2("BallPosition", pos))
+		ball->pos = XMFLOAT2(pos);
+}
